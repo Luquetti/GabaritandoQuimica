@@ -1,5 +1,5 @@
-﻿using Application.Interfaces.Repositories;
-using Domain.Entities;
+﻿using Domain.Entities;
+using Domain.Interfaces.Repositories;
 using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,101 +14,56 @@ namespace Infrastructure.Repositories
             _context = context;
         }
 
-        public async Task<IEnumerable<Usuario>> BuscarTodosAsync()
+        public async Task<Usuario?> BuscarPorEmailAsync(string email)
         {
             return await _context.Usuarios
-                .AsNoTracking()
-                .Where(u => u.Ativo)
-                .OrderBy(u => u.Nome)
-                .ToListAsync();
+                .Include(u => u.Aluno)      
+                .Include(u => u.Professor)      
+                .Include(u => u.Administrador) 
+                .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
         }
 
         public async Task<Usuario?> BuscarPorIdAsync(int id)
         {
             return await _context.Usuarios
-                .AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Id == id && u.Ativo);
+                .Include(u => u.Aluno)
+                .Include(u => u.Professor)
+                .Include(u => u.Administrador)
+                .FirstOrDefaultAsync(u => u.Id == id);
         }
 
-        public async Task<Usuario?> BuscarPorEmailAsync(string email)
+        public async Task<bool> EmailExisteAsync(string email)
         {
             return await _context.Usuarios
-                .AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower() && u.Ativo);
+                .AnyAsync(u => u.Email.ToLower() == email.ToLower());
         }
 
-        public async Task<Usuario?> BuscarPorEmailLoginAsync(string email)
+        public async Task<Usuario> CriarUsuarioAsync(Usuario usuario)
         {
-            return await _context.Usuarios
-                .AsNoTracking()
-                .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower() && u.Ativo);
-        }
-
-        public async Task<bool> EmailExisteAsync(string email, int? idExcluir = null)
-        {
-            var query = _context.Usuarios.Where(u => u.Email.ToLower() == email.ToLower() && u.Ativo);
-
-            if (idExcluir.HasValue)
-            {
-                query = query.Where(u => u.Id != idExcluir.Value);
-            }
-
-            return await query.AnyAsync();
-        }
-
-        public async Task<Usuario> CriarAsync(Usuario usuario)
-        {
-            usuario.DataCriacao = DateTime.UtcNow;
             _context.Usuarios.Add(usuario);
             await _context.SaveChangesAsync();
-            return usuario;
+            return usuario; 
         }
 
-        public async Task<Usuario> AtualizarAsync(Usuario usuario)
+        public async Task<Usuario> AtualizarUsuarioAsync(Usuario usuario)
         {
-            _context.Entry(usuario).State = EntityState.Modified;
+            _context.Usuarios.Update(usuario);
             await _context.SaveChangesAsync();
             return usuario;
         }
 
-        public async Task<bool> DeletarAsync(int id)
+        public async Task<Aluno> CriarAlunoAsync(Aluno aluno)
         {
-            var usuario = await _context.Usuarios.FindAsync(id);
-            if (usuario == null) return false;
-
-            usuario.Ativo = false;
-
+            _context.Alunos.Add(aluno);
             await _context.SaveChangesAsync();
-            return true;
+            return aluno;
         }
 
-        public async Task AtualizarUltimoLoginAsync(int id)
+        public async Task<Aluno> AtualizarAlunoAsync(Aluno aluno)
         {
-            var usuario = await _context.Usuarios.FindAsync(id);
-            if (usuario != null)
-            {
-                usuario.UltimoLogin = DateTime.UtcNow;
-                await _context.SaveChangesAsync();
-            }
-        }
-
-        public async Task<IEnumerable<Usuario>> BuscarPorTipoAsync(Domain.Enum.TipoUsuario tipo)
-        {
-            return await _context.Usuarios
-                .AsNoTracking()
-                .Where(u => u.TipoUsuario == tipo && u.Ativo)
-                .OrderBy(u => u.Nome)
-                .ToListAsync();
-        }
-
-        public async Task<int> ContarTotalAsync()
-        {
-            return await _context.Usuarios.CountAsync(u => u.Ativo);
-        }
-
-        public async Task<int> ContarPorTipoAsync(Domain.Enum.TipoUsuario tipo)
-        {
-            return await _context.Usuarios.CountAsync(u => u.TipoUsuario == tipo && u.Ativo);
+            _context.Alunos.Update(aluno);
+            await _context.SaveChangesAsync();
+            return aluno;
         }
     }
 }
