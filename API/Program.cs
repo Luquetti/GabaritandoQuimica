@@ -1,70 +1,124 @@
-using Application.DTO.Serie;
-using Application.DTO.Usuario;
-using Application.Interfaces.Repositories;
-using Application.Interfaces.Services;
-using Application.Services;
-using Application.Validators.SerieValidator;
-using Application.Validators.UsuarioValidator;
+ï»¿
+using Domain.DTOs;
+using Domain.Interfaces.Repositories;
+using Domain.Interfaces.Services;
+using Domain.Services;
+using Domain.Validators;
 using FluentValidation;
-using Infra.Repositories;
 using Infrastructure.Data;
 using Infrastructure.Repositories;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
-// ============================================
-// CONFIGURAR ENTITY FRAMEWORK
-// ============================================
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+// DATABASE
 builder.Services.AddDbContext<PlataformaDbContext>(options =>
-    options.UseNpgsql(connectionString));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// ============================================
-// INJEÇÃO DE DEPENDÊNCIA
-// ============================================
-// Repositories
+// REPOSITORIES
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
-builder.Services.AddScoped<ISerieRepository, SerieRepository>();
 
-// Services
+// SERVICES
+builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUsuarioService, UsuarioService>();
-builder.Services.AddScoped<ISerieService, SerieService>();
 
-// Validators
-builder.Services.AddScoped<IValidator<CriarUsuarioDto>, CriarUsuarioValidator>();
-builder.Services.AddScoped<IValidator<LoginDto>, LoginValidator>();
-builder.Services.AddScoped<IValidator<CriarSerieDto>, CriarSerieValidator>();
+// VALIDATORS (FluentValidation)
+builder.Services.AddScoped<IValidator<LoginDto>, LoginDtoValidator>();
+builder.Services.AddScoped<IValidator<CadastrarAlunoDto>, CadastrarAlunoDtoValidator>();
+builder.Services.AddScoped<IValidator<AlterarSenhaDto>, AlterarSenhaDtoValidator>();
+
+// JWT AUTHENTICATION
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
+            ClockSkew = TimeSpan.Zero 
+        };
+    });
+
+// AUTHORIZATION
+builder.Services.AddAuthorization();
+
+// SWAGGER COM JWT
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "Plataforma EAD API",
+        Version = "v1",
+        Description = "API para plataforma de ensino de QuÃ­mica e FÃ­sica"
+    });
+
+    // Configurar JWT no Swagger
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header usando Bearer scheme. Exemplo: 'Bearer seu_token_aqui'",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement()
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
 
 // CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowReactApp", policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins("http://localhost:3000", "http://localhost:5173")
-              .AllowAnyHeader()
+        policy.AllowAnyOrigin()
               .AllowAnyMethod()
-              .AllowCredentials();
+              .AllowAnyHeader();
     });
 });
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI();
+    app.UseSwaggerUI(c =>
+    {
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Plataforma EAD API V1");
+    });
 }
 
 app.UseHttpsRedirection();
-app.UseCors("AllowReactApp");
-app.UseAuthorization();
+app.UseCors("AllowAll");
+
+app.UseAuthentication(); 
+app.UseAuthorization();   
+
 app.MapControllers();
 
 app.Run();
