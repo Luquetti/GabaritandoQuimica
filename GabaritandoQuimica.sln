@@ -8,6 +8,9 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Infra", "Infra\Infra.csproj", "{0ED653E3-E2B6-4352-AB53-3E8AC634B342}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "API", "API\API.csproj", "{B9C0CF01-3760-4E63-AD18-A6234F569485}"
+	ProjectSection(ProjectDependencies) = postProject
+		{FC2E98D3-BD75-49D3-8F51-DB47BCC079A2} = {FC2E98D3-BD75-49D3-8F51-DB47BCC079A2}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
