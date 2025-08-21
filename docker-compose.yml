@@ -1,20 +1,17 @@
-version: '3.8'
-
 services:
   postgres:
-    image: postgres:15
+    image: postgres:16
     container_name: plataforma_postgres
     environment:
-      POSTGRES_DB: PlataformaGab
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: debora806
-      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -31,13 +28,12 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=PlataformaGab;Username=postgres;Password=debora806;
-      - Jwt__Key=minha-chave-super-secreta-com-pelo-menos-32-caracteres-para-ser-segura-jwt-plataforma-gabariando-quimica
-      - Jwt__Issuer=PlataformaGab
-      - Jwt__Audience=PlataformaGab-Users
-      - Jwt__ExpirationMinutes=60
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ASPNETCORE_URLS=${ASPNETCORE_URLS}
+      - ConnectionStrings__DefaultConnection=${CONNECTION_STRING}
+      - Jwt__Key=${JWT_KEY}
+      - Jwt__Issuer=${JWT_ISSUER}
+      - Jwt__Audience=${JWT_AUDIENCE}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]

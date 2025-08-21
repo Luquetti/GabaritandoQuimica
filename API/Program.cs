@@ -7,6 +7,8 @@ using FluentValidation;
 using Infrastructure.Data;
 using Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -56,7 +58,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // AUTHORIZATION
 builder.Services.AddAuthorization();
 
-// SWAGGER (SEMPRE ATIVO - Development e Production)
+// SWAGGER
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -67,7 +69,6 @@ builder.Services.AddSwaggerGen(c =>
         Description = "API para plataforma de ensino de Química e Física"
     });
 
-    // Configurar JWT no Swagger
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header usando Bearer scheme. Exemplo: 'Bearer seu_token_aqui'",
@@ -106,35 +107,48 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// SWAGGER SEMPRE ATIVO (Development e Production)
+// AUTO-MIGRATE DATABASE
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var context = scope.ServiceProvider.GetRequiredService<PlataformaDbContext>();
+        context.Database.Migrate();
+        Console.WriteLine("✅ Database migration completed successfully!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ Database migration failed: {ex.Message}");
+    }
+}
+
+// SWAGGER
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Plataforma EAD API V1");
-    c.RoutePrefix = string.Empty; // Swagger na raiz (http://localhost:5000)
+    c.RoutePrefix = string.Empty;
 });
 
-// HEALTH CHECK ENDPOINT
+// HEALTH CHECK
 app.MapHealthChecks("/health");
 
-// HTTPS Redirection (automático - funciona local e Docker)
+// HTTPS REDIRECTION (only in Development)
 if (app.Environment.IsDevelopment())
 {
-    // Em Development (local), use HTTPS
     app.UseHttpsRedirection();
 }
-// Em Production (Docker), não usa HTTPS (evita problemas)
 
 app.UseCors("AllowAll");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
+// DYNAMIC LOGGING
 Console.WriteLine("🚀 Plataforma EAD API iniciada!");
 Console.WriteLine($"📱 Environment: {app.Environment.EnvironmentName}");
 Console.WriteLine("📋 Endpoints disponíveis:");
-Console.WriteLine("   🏠 Swagger UI: http://localhost:5000 (raiz)");
-Console.WriteLine("   📊 Swagger JSON: http://localhost:5000/swagger/v1/swagger.json");
-Console.WriteLine("   ❤️  Health Check: http://localhost:5000/health");
+Console.WriteLine("   🏠 Swagger UI: http://localhost:8080");
+Console.WriteLine("   ❤️  Health Check: http://localhost:8080/health");
 
 app.Run();
