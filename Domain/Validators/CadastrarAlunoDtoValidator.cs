@@ -1,4 +1,4 @@
-﻿// CORRIGIR CadastrarAlunoDtoValidator.cs - VALIDAÇÕES MAIS FLEXÍVEIS
+﻿
 
 using Domain.DTOs;
 using FluentValidation;

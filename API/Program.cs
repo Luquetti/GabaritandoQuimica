@@ -1,4 +1,5 @@
-﻿using Domain.DTOs;
+﻿using API.MidlleWare;
+using Domain.DTOs;
 using Domain.Interfaces.Repositories;
 using Domain.Interfaces.Services;
 using Domain.Services;
@@ -106,6 +107,8 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 
 // AUTO-MIGRATE DATABASE
 using (var scope = app.Services.CreateScope())
