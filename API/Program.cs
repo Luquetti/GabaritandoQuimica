@@ -1,4 +1,4 @@
-﻿
+﻿using API.MidlleWare;
 using Domain.DTOs;
 using Domain.Interfaces.Repositories;
 using Domain.Interfaces.Services;
@@ -8,6 +8,8 @@ using FluentValidation;
 using Infrastructure.Data;
 using Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -20,6 +22,9 @@ builder.Services.AddControllers();
 // DATABASE
 builder.Services.AddDbContext<PlataformaDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// HEALTH CHECKS
+builder.Services.AddHealthChecks();
 
 // REPOSITORIES
 builder.Services.AddScoped<IUsuarioRepository, UsuarioRepository>();
@@ -47,14 +52,14 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = builder.Configuration["Jwt:Audience"],
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
-            ClockSkew = TimeSpan.Zero 
+            ClockSkew = TimeSpan.Zero
         };
     });
 
 // AUTHORIZATION
 builder.Services.AddAuthorization();
 
-// SWAGGER COM JWT
+// SWAGGER
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -65,7 +70,6 @@ builder.Services.AddSwaggerGen(c =>
         Description = "API para plataforma de ensino de Química e Física"
     });
 
-    // Configurar JWT no Swagger
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Description = "JWT Authorization header usando Bearer scheme. Exemplo: 'Bearer seu_token_aqui'",
@@ -104,21 +108,50 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+
+// AUTO-MIGRATE DATABASE
+using (var scope = app.Services.CreateScope())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
+    try
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Plataforma EAD API V1");
-    });
+        var context = scope.ServiceProvider.GetRequiredService<PlataformaDbContext>();
+        context.Database.Migrate();
+        Console.WriteLine("✅ Database migration completed successfully!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ Database migration failed: {ex.Message}");
+    }
 }
 
-app.UseHttpsRedirection();
+// SWAGGER
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Plataforma EAD API V1");
+    c.RoutePrefix = string.Empty;
+});
+
+// HEALTH CHECK
+app.MapHealthChecks("/health");
+
+// HTTPS REDIRECTION (only in Development)
+if (app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
+
 app.UseCors("AllowAll");
-
-app.UseAuthentication(); 
-app.UseAuthorization();   
-
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapControllers();
+
+// DYNAMIC LOGGING
+Console.WriteLine("🚀 Plataforma EAD API iniciada!");
+Console.WriteLine($"📱 Environment: {app.Environment.EnvironmentName}");
+Console.WriteLine("📋 Endpoints disponíveis:");
+Console.WriteLine("   🏠 Swagger UI: http://localhost:8080");
+Console.WriteLine("   ❤️  Health Check: http://localhost:8080/health");
 
 app.Run();

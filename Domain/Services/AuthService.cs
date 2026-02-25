@@ -65,7 +65,6 @@ namespace Domain.Services
                         claims.Add(new("ano_escolar", usuario.Aluno.AnoEscolar?.ToString() ?? ""));
                         claims.Add(new("plano_ativo", usuario.Aluno.PlanoAtivo ?? ""));
                         claims.Add(new("status_pagamento", usuario.Aluno.StatusPagamento));
-                        // Permissões do aluno
                         claims.Add(new("permission", "course.view"));
                         claims.Add(new("permission", "profile.own"));
                     }
@@ -76,7 +75,6 @@ namespace Domain.Services
                     {
                         claims.Add(new("materia", usuario.Professor.Materia));
                         claims.Add(new("data_contratacao", usuario.Professor.DataContratacao.ToString("yyyy-MM-dd")));
-                        // Permissões do professor
                         claims.Add(new("permission", "course.manage"));
                         claims.Add(new("permission", "students.view"));
                         claims.Add(new("permission", "profile.own"));
@@ -87,7 +85,6 @@ namespace Domain.Services
                     if (usuario.Administrador != null)
                     {
                         claims.Add(new("nivel_acesso", usuario.Administrador.NivelAcesso.ToString()));
-                        // Permissões do admin
                         claims.Add(new("permission", "users.manage"));
                         claims.Add(new("permission", "system.admin"));
                         claims.Add(new("permission", "profile.own"));
@@ -95,7 +92,6 @@ namespace Domain.Services
                     break;
             }
 
-            // CONFIGURAR JWT
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
